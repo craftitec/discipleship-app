@@ -36,6 +36,12 @@ theological review.
 8.  `AGENTS.md` --- binding instructions for AI coding agents.
 9.  `DECISION_LOG.md` --- confirmed decisions, assumptions, and items
     that require an accountable owner.
+10. `docs/database.md` --- authoritative single source of truth (SOT)
+    for the database schema, canonical tables, fields, constraints,
+    indexes, and client-side Dexie.js offline stores.
+11. `docs/BENCHMARK_REVIEW.md` --- comprehensive benchmark review
+    against 5 industry platforms, detailing theological and architectural
+    mediations, gap analysis, and phased enhancements.
 
 ## How to use this pack
 

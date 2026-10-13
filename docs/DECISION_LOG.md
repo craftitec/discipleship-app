@@ -210,6 +210,33 @@ must approve them in Sprint 0.
   O-015             What language/localization  Product/content     Sprint 0
                     and audio requirements are  owner               
                     in pilot?                                       
+
+  O-016             Generational Lineage Tree:  Theological         Before Sprint 9
+                    confirm consented links     governance +        
+                    only, with zero progress    product owner       
+                    scores or multiplier                            
+                    rankings (Mediation 1)?                         
+
+  O-017             Rule of Life Builder:       Discipleship        Before Sprint 8
+                    ratify un-scored            framework owner     
+                    contemplative rhythms                           
+                    and reject numerical                            
+                    quotas (Mediation 2)?                           
+
+  O-018             Zero-Knowledge Encryption:  Security +          Before Sprint 8
+                    approve client-side         safeguarding owner  
+                    AES-256-GCM standard for                        
+                    reflections (Mediation 4)?                      
+
+  O-019             ChMS Webhooks: approve      Tech lead + data    Before Sprint 9
+                    outgoing webhook filters    owner               
+                    excluding reflection                            
+                    payloads (GAP-06)?                              
+
+  O-020             HIP Affinity Matching:      Safeguarding owner  Before Sprint 9
+                    ratify double-blind                             
+                    matching and strict minor                       
+                    protections (Mediation 3)?                      
   -----------------------------------------------------------------------------------
 
 ## 4. Assumptions that must not be mistaken for facts

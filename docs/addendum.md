@@ -1,6 +1,11 @@
 
 
 
+# Addendum: Proposed Relational Features & Status
+
+> [!NOTE]
+> The concepts below have been formally evaluated, safeguarded, and mediated against industry benchmarks in [`docs/BENCHMARK_REVIEW.md`](BENCHMARK_REVIEW.md). All corresponding database tables, columns, constraints, and encryption schemas are codified in [`docs/database.md`](database.md), with execution scheduled in [`docs/SPRINT_PLAN.md`](SPRINT_PLAN.md) (Sprints 8–10).
+
 Discipleship Tracks
 Custom pathways defined by your church. Track progress through visual stages:
  New Believer

@@ -14,7 +14,8 @@ Build a modular monolith backend and an installable Progressive Web App
 -   Local persistence: IndexedDB using Dexie.js.
 -   Backend: Python, Django, Django REST Framework.
 -   Database: PostgreSQL.
--   API: versioned JSON REST API under `/api/v1`.
+-   API: versioned JSON REST API under `/api/v1`; automated OpenAPI 3.1
+    schema generation via `drf-spectacular` for typed mobile/web client SDKs.
 -   Media: S3-compatible object storage or equivalent for published
     media; do not store large media blobs in PostgreSQL.
 -   CI: lint, type check, unit/integration tests, dependency checks,
@@ -167,9 +168,11 @@ policy.
 ## 6. Authentication and authorization
 
 -   Use HTTPS everywhere.
--   Prefer secure, HttpOnly, SameSite cookies when deployment topology
-    supports them safely; otherwise use short-lived access credentials
-    and a carefully designed refresh mechanism.
+-   Dual authentication architecture: secure, HttpOnly, SameSite session
+    cookies with CSRF protection for Web/PWA clients, and stateless JWT
+    Bearer token authentication (`rest_framework_simplejwt`: short-lived
+    access credentials + refresh rotation) for native mobile applications
+    and external API integrations.
 -   CSRF protection is mandatory for cookie-authenticated state-changing
     requests.
 -   Every protected endpoint performs server-side object-level
@@ -185,31 +188,27 @@ policy.
     requests, and sync endpoints.
 -   Record privileged changes in an audit log.
 
-## 7. Domain model (logical)
+## 7. Domain model and database schema single source of truth
 
--   `User`
--   `Ministry`
--   `MinistryMembership(user_id, ministry_id, role, status)`
--   `Outreach(owner_user_id, owner_ministry_id nullable, name, status, starts_at nullable, ends_at nullable)`
--   `OutreachEvent(outreach_id, name, kind, starts_at nullable, ends_at nullable, status)`
--   `OutreachWorker(outreach_id, user_id, role)` (only if explicit
-    per-outreach assignments are required)
--   `Pathway(code)` with exactly the pilot codes `formation`,
-    `restoration`, `discernment`
--   `Enrolment(participant_id, pathway_id, outreach_id nullable, event_id nullable, missioner_id nullable, ministry_id nullable, source_type, source_snapshot, created_by_id, consent_version, status, created_at)`
--   `Journey(enrolment_id, pathway_version_id, state, started_at, last_activity_at)`
--   `PathwayVersion`, `Module`, `Lesson`, `LessonVersion`
--   `ActivityEvent(event_uuid, participant_id, journey_id, lesson_version_id, event_type, payload_schema_version, payload, client_created_at, server_received_at)`
--   `AssessmentAttempt` if assessment reporting requires normalized
-    answer/result records
--   `MentorConsent`, `MentorRelationship`
--   `ContentReview(content_version_id, reviewer_id, decision, notes, decided_at)`
--   `AuditEvent(actor_id nullable, action, object_type, object_id, timestamp, safe_metadata)`
--   `SyncReceipt(event_uuid, user_id, result, response_summary, received_at)`
+The authoritative **Single Source of Truth (SOT)** for the entire application database schema, table names, fields, data types, constraints, foreign key relationships, indexes, and client-side Dexie.js stores is [`docs/database.md`](docs/database.md).
 
-This is a logical baseline, not permission to skip schema review. Exact
-fields, constraints, deletion behaviour, retention periods, and indexes
-must be finalized before migrations.
+To prevent schema drift and uncoordinated table definitions, **no table schemas or field lists are defined in this architecture document**. All models and migrations must implement the canonical tables specified in `docs/database.md`:
+
+-   **Identity & Access:** `people`, `users`, `roles`, `accounts_consent_record`
+-   **Ministries & Tenancy:** `ministries`, `ministry_memberships`
+-   **Outreach & Attribution:** `outreaches`, `outreach_events`, `event_facilitators`
+-   **Enrolments:** `enrolments`, `enrolments_access_invitation`
+-   **Content Governance:** `pathways`, `pathway_versions`, `pathway_topics`, `pathway_lessons`, `lesson_versions`, `content_review`
+-   **Media & Digital Assets:** `media_assets`, `lesson_media_assets`
+-   **Learning & Progression:** `learning_journey`, `learning_activity_event`, `learning_assessment_attempt`, `learning_encrypted_journal_entry`
+-   **Contemplative Formation:** `learning_rule_of_life_template`, `learning_participant_rhythm`, `learning_scripture_memory_verse`, `learning_balance_reflection`
+-   **Mentorship & Lineage:** `mentorship_relationship`, `mentorship_affinity_profile`, `mentorship_generational_link`
+-   **Synchronization & Idempotency:** `sync_receipt`
+-   **Audit & Security:** `audit_event`
+-   **Ecosystem Integrations:** `integration_webhook_subscription`, `integration_webhook_event_log`
+-   **Client Offline Stores:** `contentPacks`, `journeySnapshots`, `activityOutbox`, `syncMetadata`, `localPreferences`, `personalRhythms`, `encryptedJournals`, `scriptureMemoryDeck`, `cachedMediaAssets`
+
+Refer to [`docs/database.md`](docs/database.md) for full column specifications, integrity rules, and migration guidelines.
 
 ## 8. Attribution and reporting
 

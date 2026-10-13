@@ -8,7 +8,8 @@ implementation tools
 Read these documents before implementing any task: 1. `PRODUCT.md` 2.
 `DISCIPLESHIP_FRAMEWORK.md` 3. `ARCHITECTURE.md` 4.
 `API_AND_DATA_CONTRACTS.md` 5. `SECURITY_AND_SAFEGUARDING.md` 6.
-`TEST_STRATEGY.md` 7. `SPRINT_PLAN.md` 8. `DECISION_LOG.md`
+`TEST_STRATEGY.md` 7. `SPRINT_PLAN.md` 8. `DECISION_LOG.md` 9.
+`docs/database.md` 10. `docs/BENCHMARK_REVIEW.md`
 
 If repository-specific conventions exist and do not conflict with these
 documents, follow them. If two requirements conflict, stop the affected
@@ -134,6 +135,9 @@ output.
 
 ## 9. Database and migrations
 
+-   The authoritative single source of truth for all database tables,
+    columns, constraints, indexes, and relationships is `docs/database.md`.
+    No migrations or model definitions may deviate from `docs/database.md`.
 -   Add migrations with every schema change.
 -   Add indexes for actual query/report patterns.
 -   Use explicit constraints for event UUID and idempotency.

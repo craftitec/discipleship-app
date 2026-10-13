@@ -54,73 +54,82 @@ Example error:
 Do not use `backslidden`, `unfaithful`, `spiritually_at_risk`, or
 similar moral/spiritual labels as system status values.
 
-## 3. Core entities and validation
+## 3. Core entities and API validation rules
 
-### Ministry
+> [!IMPORTANT]
+> The canonical database schema, column definitions, data types, constraints, and relationships for all entities below are defined exclusively in [`docs/database.md`](database.md). This section defines the API validation rules, serializer constraints, and business logic for data in transit.
 
-Fields: `id`, `name`, `slug`, `status`, `created_at`, `updated_at`.
+### Person & User (Maps to `people` and `users`)
 
-Rules: - Name is required and trimmed. - Slug uniqueness is enforced
-within the platform or tenancy model selected by architecture
-decision. - Only authorized platform administrators can change
-platform-level ministry status. - Membership roles are separate records;
-do not store one role on the user record for all ministries.
+-   Biodata (`first_name`, `last_name`, `phone_number`, `avatar_url`, `language_preference`, `timezone`) resides exclusively in `people`.
+-   Authentication credentials (`email`, `password_hash`, `is_active`, `email_verified_at`) reside exclusively in `users` with foreign key `person_id`.
+-   A `person` record can exist independently of a `users` record (e.g. evangelism outreach respondents, unauthenticated seekers, or guest event facilitators).
+-   When an unauthenticated participant registers for online access, a `users` account is created linking to their existing `person_id`.
+-   API endpoints returning public or ministerial profiles expose `people` fields, never sensitive authentication or security columns.
 
-### Outreach
+### Roles & Ministry Memberships (Maps to `roles` and `ministry_memberships`)
 
-Fields: `id`, `name`, `description`, `owner_user_id`,
-`owner_ministry_id` nullable, `status`, `starts_at` nullable, `ends_at`
-nullable, timestamps.
+-   System and organizational roles are managed via a dedicated `roles` catalog table (`platform_admin`, `ministry_admin`, `mentor`, `outreach_worker`, `curriculum_editor`, `participant`).
+-   Memberships link `user_id`, `ministry_id`, and `role_id`. A user's role is never stored as a flat string or unverified attribute on the user record.
+-   Access to ministry-scoped resources requires an active membership with an appropriate role.
 
-Rules: - Name required, max length configured centrally (suggest 160
-characters). - End date cannot precede start date when both are
-present. - An owner ministry must be one the creator is authorized to
-act for. - Archiving prevents new enrolments by default but does not
-delete historical attribution.
+### Ministry (Maps to `ministries`)
 
-### Outreach event/section
+-   Name is required, non-empty, and trimmed.
+-   Slug uniqueness is enforced platform-wide for tenant routing.
+-   Only platform administrators can alter ministry status.
+-   Ministry configuration includes branding, default language, and offline pack limits.
 
-Fields: `id`, `outreach_id`, `name`, `kind`, `status`, optional
-dates/location/mode, timestamps.
+### Outreach (Maps to `outreaches`)
 
-Rules: - Parent outreach must be accessible to the actor. - Event must
-not be created under an archived outreach. - Event date range must be
-valid. - Do not require location for online or unspecified events.
+-   Name is required (max 160 characters).
+-   `channel` is required and must be either `physical` or `virtual`.
+-   Default `location` (text description/address) and optional `city_id` are maintained on the parent outreach.
+-   End date (`ends_at`) cannot precede start date (`starts_at`).
+-   An owner ministry (`owner_ministry_id`) must be one the authenticated creator is authorized to administer.
+-   Archiving prevents new enrolments while preserving all historical attribution data.
 
-### Enrolment
+### Outreach Event/Section (Maps to `outreach_events`)
 
-Fields: `id`, `participant_id`, `pathway_code`, optional `outreach_id`,
-`event_id`, `missioner_id`, `ministry_id`, `source_type`,
-`source_snapshot`, `created_by_id`, `consent_version`, `status`,
-timestamps.
+-   Parent outreach (`outreach_id`) must exist, be active, and be accessible to the creator.
+-   An outreach consists of one or more events/sessions (e.g., Day 1 Morning Session, Day 2 Evening Revival).
+-   Event cannot be attached to an archived outreach.
+-   Event date range must be logically valid.
+-   Optional `location_override` for sessions hosted at an alternate site, and `stream_url` for virtual sessions.
 
-Rules: - Pathway must be one of the three supported codes for pilot. -
-If `event_id` is supplied, its `outreach_id` must match the enrolment's
-outreach. - Source fields must be server-validated against actor
-permissions. - `source_snapshot` is generated server-side; clients
-cannot write arbitrary attribution snapshots. - Duplicate policy: same
-participant + pathway + event is idempotent for the same
-request/idempotency key. If a genuine repeat enrolment is needed, create
-a new event or an explicitly versioned enrolment attempt rather than
-accidental duplicate records. - Enrolment must not overwrite an existing
-journey's progress. - Store participant consent and notice version
-applicable to the enrolment flow.
+### Event Facilitator (Maps to `event_facilitators`)
 
-### Activity event
+-   Facilitators are linked at the event level via `event_id` and `person_id`.
+-   Outreach-level facilitators are derived dynamically as the union of facilitators across all constituent events.
+-   Using `person_id` rather than `user_id` allows tracking external guest ministers and visiting workers who do not hold platform user credentials.
+-   Facilitator role code (`lead`, `speaker`, `counselor`, `usher`, `logistics`) is validated against allowed values.
 
-Fields: `event_uuid`, `journey_id`, `lesson_version_id`, `event_type`,
-`payload_schema_version`, `payload`, `client_created_at`,
-`server_received_at`.
+### Enrolment (Maps to `enrolments`)
 
-Rules: - `event_uuid` unique globally or scoped by authenticated user
-with a unique database constraint. - Event owner must match
-authenticated participant or an explicitly authorized client session. -
-`payload` must be validated against event-type-specific schema; do not
-accept arbitrary unbounded JSON. - Enforce size limits and reject
-executable content. - Client cannot set `server_received_at`,
-authoritative score, or permissions. - Duplicate UUID with identical
-canonical payload returns `already_accepted`; same UUID with a different
-payload returns conflict and is audited safely.
+-   Learner is identified by `person_id` (foreign key to `people`).
+-   Enrolment references `pathway_id` (foreign key to `pathways`), ensuring structural resilience against human-readable pathway code alterations.
+-   Enrolment occurs at the event level via `event_id` (foreign key to `outreach_events`), which directly rolls up to the parent outreach.
+-   `enrolled_by_user_id` identifies the authenticated actor who performed the enrolment (equals the participant's own `user_id` if self-enrolled, or an outreach worker's `user_id` if registered on-site).
+-   Source attribution snapshot (`source_snapshot`) is generated exclusively server-side as an immutable JSONB blob; clients cannot write arbitrary attribution snapshots.
+-   Duplicate policy: repeated enrolment for the same person + pathway + event returns the existing record idempotently.
+-   Enrolment must not reset or overwrite an existing journey's progress.
+-   Consent version affirmed during onboarding is permanently recorded in `accounts_consent_record`.
+
+### Media Assets & Lesson Media (Maps to `media_assets` and `lesson_media_assets`)
+
+-   Centralized digital asset management provides deduplicated media storage (`image`, `audio`, `video`, `document`).
+-   Media records track `file_size_bytes`, `mime_type`, `sha256_checksum`, and `storage_path` for offline package bundling.
+-   `lesson_media_assets` maps assets to lessons with specific roles (`illustration`, `audio_recitation`, `video_lecture`, `infographic`) and display sort order.
+-   All media URLs returned in public curriculum APIs are validated against authorized content versions.
+
+### Activity Event (Maps to `learning_activity_event`)
+
+-   `event_uuid` must be a valid client-generated UUIDv4 and unique.
+-   Event owner must match the authenticated participant session.
+-   `payload` must strictly validate against event-type-specific schemas; arbitrary unbounded JSON is rejected.
+-   Client cannot set `server_received_at`, authoritative score, or permissions.
+-   Duplicate UUID with identical canonical payload returns `already_accepted`; duplicate UUID with differing payload returns `conflict` and triggers a safe security audit.
+-   Free-form reflection payloads must be submitted as client-side encrypted ciphertext blobs per `docs/database.md` (`learning_encrypted_journal_entry`).
 
 ## 4. Endpoint inventory
 
@@ -128,15 +137,24 @@ The following endpoints define the intended contract. Exact URL spelling
 may be adjusted during Sprint 0, but semantics and permission rules must
 not be weakened.
 
-### Identity
+### Identity and authentication
 
--   `POST /auth/login`
+-   `POST /auth/login` (cookie-based session authentication for Web/PWA)
 -   `POST /auth/logout`
+-   `POST /auth/token/obtain` (JWT Bearer token obtain for native mobile/API clients)
+-   `POST /auth/token/refresh` (JWT refresh token rotation)
+-   `POST /auth/token/verify` (JWT token verification)
 -   `GET /me`
 -   `GET /me/consents`
 -   `POST /me/consents`
 -   `POST /me/data-request` (only if data access/deletion workflow is
     approved for pilot)
+
+### Schema and API documentation
+
+-   `GET /schema/` (OpenAPI 3.1 YAML/JSON specification via `drf-spectacular`)
+-   `GET /docs/` (Interactive Swagger UI)
+-   `GET /redoc/` (Interactive Redoc documentation)
 
 ### Ministries and memberships
 

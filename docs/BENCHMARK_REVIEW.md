@@ -593,6 +593,9 @@ To absorb the strengths of the benchmarked platforms without falling into their 
 
 ## 8. Proposed Schema & API Contract Extensions
 
+> [!NOTE]
+> All schema extensions below have been formally integrated into the project's canonical Single Source of Truth at [`docs/database.md`](database.md). Model implementations, table columns, constraints, and client Dexie stores must refer exclusively to `docs/database.md`.
+
 To prepare Crossway's architecture for Phase 2 and 3 enhancements without breaking the Sprint 0 baseline, the following schema extensions are proposed:
 
 ### 8.1 Database Model Extensions (PostgreSQL)
